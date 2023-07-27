@@ -37,12 +37,3 @@ export type Test = z.infer<typeof testSchema>;
 export type Context = z.infer<typeof contextSchema>;
 export type Problem = z.infer<typeof problemSchema>;
 export type Contest = z.infer<typeof contestSchema>;
-
-export type ModuleType = {
-  main: {
-    name: string;
-    source: string;
-  };
-  testPre: (sourcePath: string) => Promise<string[]>;
-  submitPre: (sourcePath: string) => Promise<string>;
-};

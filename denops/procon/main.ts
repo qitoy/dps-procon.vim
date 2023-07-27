@@ -4,13 +4,11 @@ import {
   Denops,
   fn,
   map,
-  op,
-  toFileUrl,
   yaml,
 } from "./deps.ts";
-import { Contest, ModuleType, Problem, problemSchema } from "./types.ts";
+import { Contest, Problem, problemSchema } from "./types.ts";
 import { getContest, getProblem, ojSubmit, ojTest } from "./utils.ts";
-import { config, setConfig } from "./config.ts";
+import { config, setConfig, modules, loadModules } from "./config.ts";
 
 export async function main(denops: Denops): Promise<void> {
   denops.dispatcher = {
@@ -25,6 +23,11 @@ export async function main(denops: Denops): Promise<void> {
       return Promise.resolve(config[key]);
     },
 
+    async setTSModules(url: unknown): Promise<void> {
+      assertString(url);
+      await loadModules(url);
+    },
+
     async proconPrepare(url: unknown): Promise<void> {
       assertString(url);
       const contest = await getContest(url);
@@ -32,7 +35,7 @@ export async function main(denops: Denops): Promise<void> {
     },
 
     async proconInit(): Promise<void> {
-      const main = (await getModule(denops)).main;
+      const main = modules[config.lang].main;
       await fn.deletebufline(denops, "", 1, "$");
       await fn.setbufline(denops, "", 1, main.source.split("\n"));
     },
@@ -54,7 +57,7 @@ export async function main(denops: Denops): Promise<void> {
 
     async proconTest(): Promise<void> {
       const problem = await readProblem(denops);
-      const exec = await (await getModule(denops)).testPre(
+      const exec = await modules[config.lang].testPre(
         await fn.expand(denops, "%:p") as string,
       );
       await denops.call("procon#open", "test");
@@ -68,7 +71,7 @@ export async function main(denops: Denops): Promise<void> {
       const problem = await readProblem(denops);
       const sourcePath = await fn.expand(denops, "%:p") as string;
       if (bang !== "!") {
-        const exec = await (await getModule(denops)).testPre(sourcePath);
+        const exec = await modules[config.lang].testPre(sourcePath);
         const output: string[] = [];
         const success = await ojTest(problem, exec, (line) => {
           output.push(line);
@@ -88,7 +91,7 @@ export async function main(denops: Denops): Promise<void> {
           return;
         }
       }
-      const submitFile = await (await getModule(denops)).submitPre(sourcePath);
+      const submitFile = await modules[config.lang].submitPre(sourcePath);
       await ojSubmit(problem, submitFile);
     },
 
@@ -138,7 +141,7 @@ async function prepareDir(denops: Denops, contest: Contest): Promise<void> {
     "$1/$2",
   );
   await Deno.mkdir(contestDir, { recursive: true });
-  const main = (await getModule(denops)).main;
+  const main = modules[config.lang].main;
   const problemDirs: string[] = [];
   for (const problem of contest.problems) {
     problemDirs.push(`${problem.context.alphabet}`);
@@ -161,20 +164,4 @@ async function prepareDir(denops: Denops, contest: Contest): Promise<void> {
     );
   }
   await denops.cmd("echo 'test downloaded'");
-}
-
-const cacheModules: Record<string, ModuleType> = {};
-
-async function getModule(denops: Denops): Promise<ModuleType> {
-  const lang = config.lang as string;
-  if (!(lang in cacheModules)) {
-    const path = await fn.globpath(
-      denops,
-      await op.runtimepath.getGlobal(denops),
-      `denops/@procon-${lang}/mod.ts`,
-      1,
-    ) as string;
-    cacheModules[lang] = (await import(toFileUrl(path).href)).Module;
-  }
-  return cacheModules[lang];
 }

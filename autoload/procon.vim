@@ -31,3 +31,7 @@ function procon#config(arg) abort
     echohl None
   endif
 endfunction
+
+function procon#modules(url) abort
+  call denops#notify('procon', 'setTSModules', [a:url])
+endfunction
