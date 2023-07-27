@@ -1,9 +1,9 @@
 export const config: Record<string, unknown> = {
-    lang: "",
+  lang: "",
 };
 
 export function setConfig(newConfig: Record<string, unknown>) {
-    for(const key in newConfig) {
-        config[key] = newConfig[key];
-    }
+  for (const key in newConfig) {
+    config[key] = newConfig[key];
+  }
 }
